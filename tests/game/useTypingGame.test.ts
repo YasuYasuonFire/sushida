@@ -19,7 +19,9 @@ describe('useTypingGame', () => {
   it('advances sushi plate and updates metrics after successful typing', () => {
     const restoreRandom = mockMathRandom(0);
 
-    const { result } = renderHook(() => useTypingGame({ timeLimit: 10, laneSize: 2 }));
+    const { result } = renderHook(() =>
+      useTypingGame({ timeLimit: 10, laneSize: 2 })
+    );
 
     expect(result.current.status).toBe('idle');
 

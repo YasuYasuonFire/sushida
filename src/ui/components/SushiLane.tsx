@@ -12,7 +12,10 @@ const renderReading = (plate: PlateProgress) => (
   </span>
 );
 
-export function SushiLane({ activePlate, upcoming }: SushiLaneProps): JSX.Element {
+export function SushiLane({
+  activePlate,
+  upcoming,
+}: SushiLaneProps): JSX.Element {
   return (
     <section className="sushi-lane">
       {activePlate ? (

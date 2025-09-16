@@ -15,7 +15,9 @@ export function TitleScreen({ onStart }: TitleScreenProps): JSX.Element {
       <button type="button" className="title-screen__start" onClick={onStart}>
         ゲームスタート
       </button>
-      <p className="title-screen__hint">Enter または スペースキー でも開始できます。</p>
+      <p className="title-screen__hint">
+        Enter または スペースキー でも開始できます。
+      </p>
     </section>
   );
 }

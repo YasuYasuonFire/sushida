@@ -10,7 +10,9 @@ const isTypingTarget = (element: EventTarget | null): boolean => {
   }
 
   const tagName = element.tagName;
-  return tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable;
+  return (
+    tagName === 'INPUT' || tagName === 'TEXTAREA' || element.isContentEditable
+  );
 };
 
 export function App(): JSX.Element {
@@ -23,7 +25,7 @@ export function App(): JSX.Element {
     completedPlates,
     start,
     restart,
-    handleKeyInput
+    handleKeyInput,
   } = useTypingGame();
 
   useEffect(() => {
@@ -38,7 +40,10 @@ export function App(): JSX.Element {
         return;
       }
 
-      if (status === 'finished' && (event.key === 'Enter' || event.key === ' ')) {
+      if (
+        status === 'finished' &&
+        (event.key === 'Enter' || event.key === ' ')
+      ) {
         event.preventDefault();
         restart();
         return;
@@ -71,12 +76,16 @@ export function App(): JSX.Element {
               timeLeft,
               activePlate,
               upcomingPlates,
-              metrics
+              metrics,
             }}
           />
         )}
         {status === 'finished' && (
-          <ResultScreen metrics={metrics} completedPlates={completedPlates} onRetry={restart} />
+          <ResultScreen
+            metrics={metrics}
+            completedPlates={completedPlates}
+            onRetry={restart}
+          />
         )}
       </main>
     </div>

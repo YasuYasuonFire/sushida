@@ -5,10 +5,18 @@ interface ScoreBoardProps {
   timeLeft: number;
 }
 
-export function ScoreBoard({ metrics, timeLeft }: ScoreBoardProps): JSX.Element {
-  const accuracy = metrics.correctChars + metrics.missedChars === 0
-    ? 100
-    : Math.round((metrics.correctChars / (metrics.correctChars + metrics.missedChars)) * 100);
+export function ScoreBoard({
+  metrics,
+  timeLeft,
+}: ScoreBoardProps): JSX.Element {
+  const accuracy =
+    metrics.correctChars + metrics.missedChars === 0
+      ? 100
+      : Math.round(
+          (metrics.correctChars /
+            (metrics.correctChars + metrics.missedChars)) *
+            100
+        );
 
   return (
     <section className="score-board">

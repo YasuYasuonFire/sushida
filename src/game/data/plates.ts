@@ -20,5 +20,5 @@ export const sushiPlates: SushiPlate[] = [
   { id: 'kazunoko', label: '数の子', reading: 'kazunoko', price: 170 },
   { id: 'kani-miso', label: 'かにみそ', reading: 'kanimiso', price: 190 },
   { id: 'awabi', label: 'あわび', reading: 'awabi', price: 210 },
-  { id: 'sayori', label: 'さより', reading: 'sayori', price: 120 }
+  { id: 'sayori', label: 'さより', reading: 'sayori', price: 120 },
 ];

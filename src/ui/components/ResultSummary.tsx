@@ -6,10 +6,19 @@ interface ResultSummaryProps {
   onRetry: () => void;
 }
 
-export function ResultSummary({ metrics, completed, onRetry }: ResultSummaryProps): JSX.Element {
-  const accuracy = metrics.correctChars + metrics.missedChars === 0
-    ? 100
-    : Math.round((metrics.correctChars / (metrics.correctChars + metrics.missedChars)) * 100);
+export function ResultSummary({
+  metrics,
+  completed,
+  onRetry,
+}: ResultSummaryProps): JSX.Element {
+  const accuracy =
+    metrics.correctChars + metrics.missedChars === 0
+      ? 100
+      : Math.round(
+          (metrics.correctChars /
+            (metrics.correctChars + metrics.missedChars)) *
+            100
+        );
 
   return (
     <section className="result-summary">
@@ -46,9 +55,15 @@ export function ResultSummary({ metrics, completed, onRetry }: ResultSummaryProp
         {completed.map((plate) => (
           <li key={`${plate.id}-${plate.typed}`}>
             <span className="result-summary__list-label">{plate.label}</span>
-            <span className="result-summary__list-reading">{plate.reading}</span>
-            <span className="result-summary__list-time">{(plate.durationMs / 1000).toFixed(1)}s</span>
-            <span className="result-summary__list-miss">ミス {plate.mistakes}</span>
+            <span className="result-summary__list-reading">
+              {plate.reading}
+            </span>
+            <span className="result-summary__list-time">
+              {(plate.durationMs / 1000).toFixed(1)}s
+            </span>
+            <span className="result-summary__list-miss">
+              ミス {plate.mistakes}
+            </span>
           </li>
         ))}
       </ul>

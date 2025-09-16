@@ -7,10 +7,18 @@ interface ResultScreenProps {
   onRetry: () => void;
 }
 
-export function ResultScreen({ metrics, completedPlates, onRetry }: ResultScreenProps): JSX.Element {
+export function ResultScreen({
+  metrics,
+  completedPlates,
+  onRetry,
+}: ResultScreenProps): JSX.Element {
   return (
     <section className="result-screen">
-      <ResultSummary metrics={metrics} completed={completedPlates} onRetry={onRetry} />
+      <ResultSummary
+        metrics={metrics}
+        completed={completedPlates}
+        onRetry={onRetry}
+      />
     </section>
   );
 }

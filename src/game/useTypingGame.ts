@@ -1,15 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CHAR_SCORE, DEFAULT_LANE_SIZE, DEFAULT_TIME_LIMIT, MISTAKE_PENALTY, PLATE_BONUS } from './constants';
+import {
+  CHAR_SCORE,
+  DEFAULT_LANE_SIZE,
+  DEFAULT_TIME_LIMIT,
+  MISTAKE_PENALTY,
+  PLATE_BONUS,
+} from './constants';
 import { createPlateProgress, pickRandomPlate } from './utils';
 import {
   CompletedPlate,
   GameState,
   TypingGameOptions,
-  TypingGameValue
+  TypingGameValue,
 } from './types';
 
 const createInitialState = (timeLimit: number, laneSize: number): GameState => {
-  const initialUpcoming = Array.from({ length: Math.max(laneSize - 1, 0) }, () => pickRandomPlate());
+  const initialUpcoming = Array.from(
+    { length: Math.max(laneSize - 1, 0) },
+    () => pickRandomPlate()
+  );
 
   return {
     status: 'idle',
@@ -24,9 +33,9 @@ const createInitialState = (timeLimit: number, laneSize: number): GameState => {
       maxCombo: 0,
       correctChars: 0,
       missedChars: 0,
-      coins: 0
+      coins: 0,
     },
-    startedAt: null
+    startedAt: null,
   };
 };
 
@@ -36,7 +45,9 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
   const timeLimit = options?.timeLimit ?? DEFAULT_TIME_LIMIT;
   const laneSize = options?.laneSize ?? DEFAULT_LANE_SIZE;
 
-  const [state, setState] = useState(() => createInitialState(timeLimit, laneSize));
+  const [state, setState] = useState(() =>
+    createInitialState(timeLimit, laneSize)
+  );
   const intervalRef = useRef<number | null>(null);
   const plateStartedAtRef = useRef<number | null>(null);
 
@@ -52,7 +63,7 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
     setState((prev) => ({
       ...prev,
       status: 'finished',
-      timeLeft: 0
+      timeLeft: 0,
     }));
   }, [stopTimer]);
 
@@ -67,26 +78,28 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
         window.setTimeout(finishGame, 0);
         return {
           ...prev,
-          timeLeft: 0
+          timeLeft: 0,
         };
       }
 
       return {
         ...prev,
-        timeLeft: nextTime
+        timeLeft: nextTime,
       };
     });
   }, [finishGame]);
 
   const primeLane = useCallback(() => {
     const active = pickRandomPlate();
-    const upcoming = Array.from({ length: Math.max(laneSize - 1, 0) }, () => pickRandomPlate(active.id));
+    const upcoming = Array.from({ length: Math.max(laneSize - 1, 0) }, () =>
+      pickRandomPlate(active.id)
+    );
     plateStartedAtRef.current = Date.now();
 
     setState((prev) => ({
       ...prev,
       activePlate: createPlateProgress(active),
-      upcomingPlates: upcoming
+      upcomingPlates: upcoming,
     }));
   }, [laneSize]);
 
@@ -107,7 +120,7 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
       ...prev,
       status: 'running',
       timeLeft: prev.timeLimit,
-      startedAt: Date.now()
+      startedAt: Date.now(),
     }));
     primeLane();
     startTimer();
@@ -120,21 +133,23 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
   const pushCompletedPlate = useCallback((completed: CompletedPlate) => {
     setState((prev) => ({
       ...prev,
-      completedPlates: [...prev.completedPlates, completed]
+      completedPlates: [...prev.completedPlates, completed],
     }));
   }, []);
 
   const advanceLane = useCallback(() => {
     setState((prev) => {
-      const nextActive = prev.upcomingPlates[0] ?? pickRandomPlate(prev.activePlate?.id);
+      const nextActive =
+        prev.upcomingPlates[0] ?? pickRandomPlate(prev.activePlate?.id);
       const replenished = pickRandomPlate(nextActive?.id);
-      const newUpcoming = laneSize > 1 ? [...prev.upcomingPlates.slice(1), replenished] : [];
+      const newUpcoming =
+        laneSize > 1 ? [...prev.upcomingPlates.slice(1), replenished] : [];
       plateStartedAtRef.current = Date.now();
 
       return {
         ...prev,
         activePlate: createPlateProgress(nextActive),
-        upcomingPlates: newUpcoming
+        upcomingPlates: newUpcoming,
       };
     });
   }, [laneSize]);
@@ -166,7 +181,7 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
             combo,
             maxCombo: Math.max(prev.metrics.maxCombo, combo),
             correctChars: prev.metrics.correctChars + 1,
-            score: newScore
+            score: newScore,
           };
 
           if (updatedRemaining.length === 0) {
@@ -176,7 +191,9 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
               remaining: '',
               mistakes: prev.activePlate.mistakes,
               completed: true,
-              durationMs: plateStartedAtRef.current ? Date.now() - plateStartedAtRef.current : 0
+              durationMs: plateStartedAtRef.current
+                ? Date.now() - plateStartedAtRef.current
+                : 0,
             };
 
             window.setTimeout(() => {
@@ -190,14 +207,14 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
                 ...prev.activePlate,
                 typed: updatedTyped,
                 remaining: '',
-                mistakes: prev.activePlate.mistakes
+                mistakes: prev.activePlate.mistakes,
               },
               metrics: {
                 ...newMetrics,
                 combo,
                 score: newScore + PLATE_BONUS,
-                coins: prev.metrics.coins + (prev.activePlate?.price ?? 0)
-              }
+                coins: prev.metrics.coins + (prev.activePlate?.price ?? 0),
+              },
             };
           }
 
@@ -206,9 +223,9 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
             activePlate: {
               ...prev.activePlate,
               typed: updatedTyped,
-              remaining: updatedRemaining
+              remaining: updatedRemaining,
             },
-            metrics: newMetrics
+            metrics: newMetrics,
           };
         }
 
@@ -216,14 +233,14 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
           ...prev,
           activePlate: {
             ...prev.activePlate,
-            mistakes: prev.activePlate.mistakes + 1
+            mistakes: prev.activePlate.mistakes + 1,
           },
           metrics: {
             ...prev.metrics,
             combo: 0,
             missedChars: prev.metrics.missedChars + 1,
-            score: Math.max(0, prev.metrics.score - MISTAKE_PENALTY)
-          }
+            score: Math.max(0, prev.metrics.score - MISTAKE_PENALTY),
+          },
         };
       });
     },
@@ -245,7 +262,7 @@ export const useTypingGame = (options?: TypingGameOptions): TypingGameValue => {
       ...state,
       start,
       restart,
-      handleKeyInput
+      handleKeyInput,
     }),
     [handleKeyInput, restart, start, state]
   );
