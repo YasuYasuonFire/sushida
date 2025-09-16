@@ -1,0 +1,150 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # 毎週火曜日の午前9時（JST）に実行
+    - cron: '0 0 * * 2'
+  workflow_dispatch: # 手動実行を許可
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Check for outdated packages
+      id: outdated
+      run: |
+        echo "## Outdated Packages" > outdated-report.md
+        npm outdated --json > outdated.json || true
+        if [ -s outdated.json ]; then
+          echo "has_updates=true" >> $GITHUB_OUTPUT
+          node -e "
+            const outdated = JSON.parse(require('fs').readFileSync('outdated.json', 'utf8'));
+            console.log('| Package | Current | Wanted | Latest |');
+            console.log('|---------|---------|--------|--------|');
+            Object.entries(outdated).forEach(([pkg, info]) => {
+              console.log(\`| \${pkg} | \${info.current} | \${info.wanted} | \${info.latest} |\`);
+            });
+          " >> outdated-report.md
+        else
+          echo "has_updates=false" >> $GITHUB_OUTPUT
+          echo "All packages are up to date! ✅" >> outdated-report.md
+        fi
+
+    - name: Update minor and patch versions
+      if: steps.outdated.outputs.has_updates == 'true'
+      run: |
+        # パッチとマイナーアップデートのみ自動更新
+        npm update --save
+        npm update --save-dev
+
+    - name: Run tests after update
+      if: steps.outdated.outputs.has_updates == 'true'
+      run: |
+        npm test -- --run
+        npm run lint
+        npm run build
+
+    - name: Create Pull Request
+      if: steps.outdated.outputs.has_updates == 'true'
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update dependencies'
+        title: '🔄 Auto-update dependencies'
+        body: |
+          ## 依存関係の自動更新
+
+          このPRは依存関係の自動更新を行います。
+
+          ### 更新内容
+          $(cat outdated-report.md)
+
+          ### 確認項目
+          - [x] テストが通過している
+          - [x] リンターが通過している
+          - [x] ビルドが成功している
+          
+          ### 注意事項
+          - メジャーバージョンアップデートは含まれていません
+          - 手動でのコードレビューを推奨します
+
+        branch: auto-dependency-updates
+        delete-branch: true
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run security audit
+      run: |
+        echo "## Security Audit Report" > security-report.md
+        echo "" >> security-report.md
+        
+        # 脆弱性の詳細レポート
+        npm audit --json > audit.json || true
+        
+        if [ -s audit.json ]; then
+          vulnerabilities=$(node -e "
+            const audit = JSON.parse(require('fs').readFileSync('audit.json', 'utf8'));
+            if (audit.vulnerabilities) {
+              const vulns = Object.keys(audit.vulnerabilities).length;
+              console.log(vulns);
+            } else {
+              console.log(0);
+            }
+          ")
+          
+          if [ "$vulnerabilities" -gt 0 ]; then
+            echo "⚠️ Found $vulnerabilities vulnerabilities" >> security-report.md
+            echo "" >> security-report.md
+            echo "### Details:" >> security-report.md
+            npm audit --audit-level=moderate >> security-report.md || true
+          else
+            echo "✅ No vulnerabilities found" >> security-report.md
+          fi
+        else
+          echo "✅ No vulnerabilities found" >> security-report.md
+        fi
+
+    - name: Create security issue if vulnerabilities found
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('security-report.md', 'utf8');
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Security vulnerabilities detected',
+            body: `${report}\n\n**Action Required:** Please review and fix the security vulnerabilities.`,
+            labels: ['security', 'bug', 'priority-high']
+          });

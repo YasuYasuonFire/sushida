@@ -1,0 +1,122 @@
+name: Auto Assign
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Auto assign issues and PRs
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          
+          // デフォルトのアサイニー（実際のユーザー名に変更してください）
+          const defaultAssignees = ['your-username'];
+          
+          if (context.eventName === 'issues') {
+            // Issueの場合
+            const issue = context.payload.issue;
+            
+            // ラベルに基づく自動アサイン
+            const labels = issue.labels.map(label => label.name);
+            let assignees = [];
+            
+            if (labels.includes('bug')) {
+              assignees = defaultAssignees; // バグは主要メンテナーにアサイン
+            } else if (labels.includes('enhancement') || labels.includes('feature')) {
+              assignees = defaultAssignees; // 機能追加も主要メンテナーにアサイン
+            } else if (labels.includes('documentation')) {
+              assignees = defaultAssignees; // ドキュメントも主要メンテナーにアサイン
+            } else {
+              assignees = defaultAssignees; // その他も主要メンテナーにアサイン
+            }
+            
+            if (assignees.length > 0) {
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number: issue.number,
+                assignees
+              });
+            }
+            
+            // ウェルカムコメント（初回投稿者の場合）
+            const { data: issuesData } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              creator: issue.user.login,
+              state: 'all'
+            });
+            
+            if (issuesData.length === 1) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `👋 @${issue.user.login} さん、初回のissue投稿ありがとうございます！\n\nできるだけ早く対応いたします。追加情報が必要な場合はお知らせください。\n\n---\n\nThank you for your first issue! We'll try to respond as soon as possible. Please let us know if you need to provide additional information.`
+              });
+            }
+          } else if (context.eventName === 'pull_request') {
+            // Pull Requestの場合
+            const pr = context.payload.pull_request;
+            
+            // PRのサイズに基づく自動ラベル付け
+            const additions = pr.additions;
+            const deletions = pr.deletions;
+            const totalChanges = additions + deletions;
+            
+            let sizeLabel = '';
+            if (totalChanges < 10) {
+              sizeLabel = 'size/XS';
+            } else if (totalChanges < 30) {
+              sizeLabel = 'size/S';
+            } else if (totalChanges < 100) {
+              sizeLabel = 'size/M';
+            } else if (totalChanges < 500) {
+              sizeLabel = 'size/L';
+            } else {
+              sizeLabel = 'size/XL';
+            }
+            
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: pr.number,
+              labels: [sizeLabel]
+            });
+            
+            // レビュアーの自動アサイン
+            const reviewers = defaultAssignees.filter(user => user !== pr.user.login);
+            if (reviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner,
+                repo,
+                pull_number: pr.number,
+                reviewers
+              });
+            }
+            
+            // ウェルカムコメント（初回投稿者の場合）
+            const { data: prsData } = await github.rest.pulls.list({
+              owner,
+              repo,
+              creator: pr.user.login,
+              state: 'all'
+            });
+            
+            if (prsData.length === 1) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: `🎉 @${pr.user.login} さん、初回のPR投稿ありがとうございます！\n\n以下の点をご確認ください：\n- [ ] テストが通ること\n- [ ] リンターが通ること\n- [ ] 変更内容が適切にドキュメント化されていること\n\nレビューをお待ちください！\n\n---\n\nThank you for your first PR! Please make sure:\n- [ ] Tests pass\n- [ ] Linter passes\n- [ ] Changes are properly documented\n\nWe'll review it soon!`
+              });
+            }
+          }

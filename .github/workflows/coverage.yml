@@ -1,0 +1,205 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm test -- --coverage --run
+
+    - name: Generate coverage report
+      run: |
+        echo "## Test Coverage Report" > coverage-summary.md
+        echo "" >> coverage-summary.md
+        
+        # カバレッジサマリーを生成
+        if [ -f coverage/coverage-summary.json ]; then
+          node -e "
+            const coverage = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+            
+            console.log('### Overall Coverage');
+            console.log('');
+            console.log('| Metric | Coverage | Status |');
+            console.log('|--------|----------|--------|');
+            
+            const getStatus = (pct) => pct >= 80 ? '✅' : pct >= 60 ? '⚠️' : '❌';
+            
+            console.log(\`| Lines | \${total.lines.pct}% | \${getStatus(total.lines.pct)} |\`);
+            console.log(\`| Functions | \${total.functions.pct}% | \${getStatus(total.functions.pct)} |\`);
+            console.log(\`| Branches | \${total.branches.pct}% | \${getStatus(total.branches.pct)} |\`);
+            console.log(\`| Statements | \${total.statements.pct}% | \${getStatus(total.statements.pct)} |\`);
+            
+            console.log('');
+            console.log('### Coverage Thresholds');
+            console.log('- ✅ Good: >= 80%');
+            console.log('- ⚠️ Warning: 60-79%');
+            console.log('- ❌ Poor: < 60%');
+          " >> coverage-summary.md
+        else
+          echo "❌ Coverage report not found" >> coverage-summary.md
+        fi
+
+    - name: Check coverage thresholds
+      run: |
+        if [ -f coverage/coverage-summary.json ]; then
+          node -e "
+            const coverage = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+            
+            const thresholds = {
+              lines: 70,
+              functions: 70,
+              branches: 60,
+              statements: 70
+            };
+            
+            let failed = false;
+            
+            Object.entries(thresholds).forEach(([metric, threshold]) => {
+              if (total[metric].pct < threshold) {
+                console.log(\`❌ \${metric} coverage (\${total[metric].pct}%) is below threshold (\${threshold}%)\`);
+                failed = true;
+              } else {
+                console.log(\`✅ \${metric} coverage (\${total[metric].pct}%) meets threshold (\${threshold}%)\`);
+              }
+            });
+            
+            if (failed) {
+              console.log('\\n🚨 Coverage check failed. Please add more tests.');
+              process.exit(1);
+            } else {
+              console.log('\\n🎉 All coverage thresholds met!');
+            }
+          "
+        else
+          echo "❌ Coverage data not available"
+          exit 1
+        fi
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ./coverage/
+        fail_ci_if_error: false
+        verbose: true
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: |
+          coverage/
+          coverage-summary.md
+        retention-days: 30
+
+    - name: Comment PR with coverage
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('coverage-summary.md')) {
+            const coverageReport = fs.readFileSync('coverage-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverageReport
+            });
+          }
+
+  coverage-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout PR
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage (PR)
+      run: npm test -- --coverage --run
+
+    - name: Save PR coverage
+      run: cp coverage/coverage-summary.json pr-coverage.json
+
+    - name: Checkout main branch
+      uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Install dependencies (main)
+      run: npm ci
+
+    - name: Run tests with coverage (main)
+      run: npm test -- --coverage --run
+
+    - name: Compare coverage
+      run: |
+        node -e "
+          const prCoverage = JSON.parse(require('fs').readFileSync('pr-coverage.json', 'utf8'));
+          const mainCoverage = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8'));
+          
+          const prTotal = prCoverage.total;
+          const mainTotal = mainCoverage.total;
+          
+          console.log('## Coverage Comparison');
+          console.log('');
+          console.log('| Metric | Main | PR | Change |');
+          console.log('|--------|------|----|---------| ');
+          
+          ['lines', 'functions', 'branches', 'statements'].forEach(metric => {
+            const mainPct = mainTotal[metric].pct;
+            const prPct = prTotal[metric].pct;
+            const diff = prPct - mainPct;
+            const diffStr = diff > 0 ? \`+\${diff.toFixed(1)}%\` : \`\${diff.toFixed(1)}%\`;
+            const emoji = diff > 0 ? '📈' : diff < 0 ? '📉' : '➡️';
+            
+            console.log(\`| \${metric} | \${mainPct}% | \${prPct}% | \${emoji} \${diffStr} |\`);
+          });
+        " > coverage-diff.md
+
+    - name: Comment coverage diff
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const coverageDiff = fs.readFileSync('coverage-diff.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: coverageDiff
+          });

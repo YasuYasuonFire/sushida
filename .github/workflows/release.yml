@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.0.0, v2.1.3などのタグにマッチ
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # 全履歴を取得してchangelog生成
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test -- --run
+
+    - name: Run linter
+      run: npm run lint
+
+    - name: Build for production
+      run: npm run build
+
+    - name: Get version from tag or input
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # 前回のタグを取得
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        CURRENT_TAG=${{ steps.version.outputs.version }}
+        
+        echo "## 🚀 Release $CURRENT_TAG" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "**Release Date:** $(date '+%Y-%m-%d')" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "### 📝 Changes since $PREVIOUS_TAG" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          # コミットメッセージから変更内容を抽出
+          git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | grep -E "^- (feat|fix|perf|refactor|style|docs|test|chore)" >> CHANGELOG.md || true
+          
+          echo "" >> CHANGELOG.md
+          echo "### 🔗 Commits" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- [%h](https://github.com/${{ github.repository }}/commit/%H) %s (%an)" $PREVIOUS_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "### 🎉 Initial Release" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "This is the first release of the project!" >> CHANGELOG.md
+        fi
+        
+        echo "" >> CHANGELOG.md
+        echo "### 📊 Stats" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        
+        # ファイル統計
+        echo "- **Files changed:** $(git diff --name-only $PREVIOUS_TAG..HEAD 2>/dev/null | wc -l || echo 'N/A')" >> CHANGELOG.md
+        echo "- **Lines added:** $(git diff --stat $PREVIOUS_TAG..HEAD 2>/dev/null | tail -1 | grep -o '[0-9]* insertion' | grep -o '[0-9]*' || echo '0')" >> CHANGELOG.md
+        echo "- **Lines removed:** $(git diff --stat $PREVIOUS_TAG..HEAD 2>/dev/null | tail -1 | grep -o '[0-9]* deletion' | grep -o '[0-9]*' || echo '0')" >> CHANGELOG.md
+        
+        # バンドルサイズ情報
+        echo "- **Bundle size:** $(du -h dist/*.js 2>/dev/null | awk '{print $1}' | head -1 || echo 'N/A')" >> CHANGELOG.md
+
+    - name: Create ZIP archive
+      run: |
+        zip -r sushida-clone-${{ steps.version.outputs.version }}.zip dist/ -x "*.map"
+
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./sushida-clone-${{ steps.version.outputs.version }}.zip
+        asset_name: sushida-clone-${{ steps.version.outputs.version }}.zip
+        asset_content_type: application/zip
+
+    - name: Deploy to GitHub Pages (Release)
+      if: success()
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        tag_name: ${{ steps.version.outputs.version }}
+        tag_message: 'Release ${{ steps.version.outputs.version }}'
+
+  notify-release:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Create release notification issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = '${{ steps.version.outputs.version }}' || context.ref.replace('refs/tags/', '');
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🎉 Release ${version} Published`,
+            body: `
+              ## 🚀 New Release Available!
+              
+              **Version:** ${version}
+              **Release Date:** ${new Date().toISOString().split('T')[0]}
+              
+              ### 📥 Download
+              - [Download ZIP](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/download/${version}/sushida-clone-${version}.zip)
+              - [View Release Notes](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${version})
+              
+              ### 🌐 Live Demo
+              - [GitHub Pages](https://${context.repo.owner}.github.io/${context.repo.repo}/)
+              
+              ### 🔄 Next Steps
+              - [ ] Update documentation if needed
+              - [ ] Announce on social media
+              - [ ] Monitor for any issues
+              
+              This issue will be automatically closed in 7 days.
+            `,
+            labels: ['release', 'announcement']
+          });

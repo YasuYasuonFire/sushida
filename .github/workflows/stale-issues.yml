@@ -1,0 +1,52 @@
+name: Mark Stale Issues and PRs
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 毎日実行
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/stale@v8
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        
+        # Issues設定
+        days-before-issue-stale: 30
+        days-before-issue-close: 7
+        stale-issue-label: 'stale'
+        stale-issue-message: |
+          このissueは30日間活動がないため、staleとしてマークされました。
+          7日以内にコメントがない場合、自動的にクローズされます。
+          
+          This issue has been marked as stale due to 30 days of inactivity.
+          It will be automatically closed in 7 days if no further activity occurs.
+        close-issue-message: |
+          このissueは非活動のため自動的にクローズされました。
+          必要に応じて再開してください。
+          
+          This issue was automatically closed due to inactivity.
+          Please reopen if needed.
+        
+        # Pull Request設定
+        days-before-pr-stale: 14
+        days-before-pr-close: 7
+        stale-pr-label: 'stale'
+        stale-pr-message: |
+          このPRは14日間活動がないため、staleとしてマークされました。
+          7日以内にコメントがない場合、自動的にクローズされます。
+          
+          This PR has been marked as stale due to 14 days of inactivity.
+          It will be automatically closed in 7 days if no further activity occurs.
+        close-pr-message: |
+          このPRは非活動のため自動的にクローズされました。
+          必要に応じて再開してください。
+          
+          This PR was automatically closed due to inactivity.
+          Please reopen if needed.
+        
+        # 除外設定
+        exempt-issue-labels: 'pinned,security,enhancement'
+        exempt-pr-labels: 'pinned,security,work-in-progress'

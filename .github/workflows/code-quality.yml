@@ -1,0 +1,256 @@
+name: Code Quality Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 毎週日曜日に実行
+    - cron: '0 0 * * 0'
+
+jobs:
+  quality-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # SonarCloudのために全履歴を取得
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linter with detailed output
+      run: |
+        echo "## ESLint Report" > eslint-report.md
+        echo "" >> eslint-report.md
+        npm run lint -- --format json --output-file eslint-results.json || true
+        
+        # ESLint結果を解析
+        node -e "
+          const results = JSON.parse(require('fs').readFileSync('eslint-results.json', 'utf8'));
+          let totalErrors = 0;
+          let totalWarnings = 0;
+          
+          console.log('| File | Errors | Warnings |');
+          console.log('|------|--------|----------|');
+          
+          results.forEach(result => {
+            if (result.errorCount > 0 || result.warningCount > 0) {
+              console.log(\`| \${result.filePath.replace(process.cwd(), '.')} | \${result.errorCount} | \${result.warningCount} |\`);
+            }
+            totalErrors += result.errorCount;
+            totalWarnings += result.warningCount;
+          });
+          
+          console.log('');
+          console.log(\`**Total:** \${totalErrors} errors, \${totalWarnings} warnings\`);
+          
+          if (totalErrors > 0) {
+            console.log('');
+            console.log('### Error Details:');
+            results.forEach(result => {
+              result.messages.forEach(message => {
+                if (message.severity === 2) {
+                  console.log(\`- **\${result.filePath.replace(process.cwd(), '.')}:\${message.line}** \${message.message} (\${message.ruleId})\`);
+                }
+              });
+            });
+          }
+        " >> eslint-report.md
+
+    - name: Run tests with coverage
+      run: npm test -- --coverage --run
+
+    - name: Analyze bundle size
+      run: |
+        npm run build
+        echo "## Bundle Analysis" > bundle-report.md
+        echo "" >> bundle-report.md
+        
+        # バンドルサイズの詳細分析
+        find dist -name "*.js" -o -name "*.css" | sort | while read file; do
+          size=$(du -h "$file" | cut -f1)
+          lines=$(wc -l < "$file" 2>/dev/null || echo "0")
+          filename=$(basename "$file")
+          echo "| $filename | $size | $lines lines |" >> bundle-report.md
+        done
+        
+        # 全体サイズ
+        total_size=$(du -sh dist | cut -f1)
+        echo "" >> bundle-report.md
+        echo "**Total bundle size:** $total_size" >> bundle-report.md
+
+    - name: Complexity analysis
+      run: |
+        echo "## Complexity Analysis" > complexity-report.md
+        echo "" >> complexity-report.md
+        
+        # TypeScriptファイルの複雑度分析
+        npx ts-complexity-report src --format json --output complexity.json || true
+        
+        if [ -f complexity.json ]; then
+          node -e "
+            const complexity = JSON.parse(require('fs').readFileSync('complexity.json', 'utf8'));
+            
+            console.log('| File | Complexity | Functions | Classes |');
+            console.log('|------|------------|-----------|---------|');
+            
+            complexity.files.forEach(file => {
+              const complexity = file.complexity || 0;
+              const functions = file.functions || 0;
+              const classes = file.classes || 0;
+              const status = complexity > 10 ? '🔴' : complexity > 5 ? '🟡' : '🟢';
+              
+              console.log(\`| \${file.path} | \${status} \${complexity} | \${functions} | \${classes} |\`);
+            });
+            
+            console.log('');
+            console.log('**Legend:** 🟢 Low (≤5) | 🟡 Medium (6-10) | 🔴 High (>10)');
+          " >> complexity-report.md
+        else
+          echo "Complexity analysis not available" >> complexity-report.md
+        fi
+
+    - name: Dependency analysis
+      run: |
+        echo "## Dependency Analysis" > dependency-report.md
+        echo "" >> dependency-report.md
+        
+        # 依存関係の分析
+        npm ls --depth=0 --json > deps.json 2>/dev/null || true
+        
+        if [ -f deps.json ]; then
+          node -e "
+            const deps = JSON.parse(require('fs').readFileSync('deps.json', 'utf8'));
+            const dependencies = deps.dependencies || {};
+            
+            console.log('### Production Dependencies');
+            console.log('');
+            console.log('| Package | Version | License |');
+            console.log('|---------|---------|---------|');
+            
+            Object.entries(dependencies).forEach(([name, info]) => {
+              const version = info.version || 'unknown';
+              console.log(\`| \${name} | \${version} | - |\`);
+            });
+            
+            console.log('');
+            console.log(\`**Total dependencies:** \${Object.keys(dependencies).length}\`);
+          " >> dependency-report.md
+        fi
+
+    - name: Generate quality summary
+      run: |
+        echo "# 📊 Code Quality Summary" > quality-summary.md
+        echo "" >> quality-summary.md
+        echo "**Generated:** $(date)" >> quality-summary.md
+        echo "" >> quality-summary.md
+        
+        # 各レポートをまとめる
+        if [ -f eslint-report.md ]; then
+          cat eslint-report.md >> quality-summary.md
+          echo "" >> quality-summary.md
+        fi
+        
+        if [ -f bundle-report.md ]; then
+          cat bundle-report.md >> quality-summary.md
+          echo "" >> quality-summary.md
+        fi
+        
+        if [ -f complexity-report.md ]; then
+          cat complexity-report.md >> quality-summary.md
+          echo "" >> quality-summary.md
+        fi
+        
+        if [ -f dependency-report.md ]; then
+          cat dependency-report.md >> quality-summary.md
+          echo "" >> quality-summary.md
+        fi
+        
+        # カバレッジサマリーを追加
+        if [ -f coverage/coverage-summary.json ]; then
+          echo "## Test Coverage" >> quality-summary.md
+          echo "" >> quality-summary.md
+          node -e "
+            const coverage = JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const total = coverage.total;
+            
+            console.log('| Metric | Coverage |');
+            console.log('|--------|----------|');
+            console.log(\`| Lines | \${total.lines.pct}% |\`);
+            console.log(\`| Functions | \${total.functions.pct}% |\`);
+            console.log(\`| Branches | \${total.branches.pct}% |\`);
+            console.log(\`| Statements | \${total.statements.pct}% |\`);
+          " >> quality-summary.md
+        fi
+
+    - name: Upload quality reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: quality-reports
+        path: |
+          quality-summary.md
+          eslint-results.json
+          complexity.json
+          coverage/
+        retention-days: 30
+
+    - name: Comment PR with quality report
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (fs.existsSync('quality-summary.md')) {
+            const qualityReport = fs.readFileSync('quality-summary.md', 'utf8');
+            
+            // レポートが長すぎる場合は要約版を作成
+            const lines = qualityReport.split('\n');
+            const summary = lines.slice(0, 50).join('\n');
+            const truncated = lines.length > 50 ? '\n\n... (truncated, see artifacts for full report)' : '';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary + truncated
+            });
+          }
+
+  sonarcloud:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm test -- --coverage --run
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
