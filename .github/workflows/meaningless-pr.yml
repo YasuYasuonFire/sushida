@@ -1,0 +1,131 @@
+name: Create Meaningless PR Every 5 Minutes
+
+on:
+  schedule:
+    # 5分毎に実行 (UTC時間)
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # 手動実行も可能
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-meaningless-pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name "Meaningless PR Bot"
+          git config --global user.email "bot@example.com"
+          
+      - name: Create meaningless changes
+        run: |
+          # ランダムなブランチ名を生成
+          BRANCH_NAME="meaningless-pr-$(date +%Y%m%d-%H%M%S)-$(echo $RANDOM)"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          
+          # 新しいブランチを作成
+          git checkout -b "$BRANCH_NAME"
+          
+          # 無意味な変更を作成
+          echo "# Meaningless change at $(date)" >> meaningless-changes.md
+          echo "Random number: $RANDOM" >> meaningless-changes.md
+          echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" >> meaningless-changes.md
+          echo "" >> meaningless-changes.md
+          
+          # 既存のファイルにも無意味なコメントを追加
+          if [ -f "README.md" ]; then
+            echo "<!-- Meaningless comment added at $(date) -->" >> README.md
+          fi
+          
+          # 変更をコミット
+          git add .
+          git commit -m "Add meaningless changes at $(date)"
+          
+          # ブランチをプッシュ
+          git push origin "$BRANCH_NAME"
+          
+      - name: Create Pull Request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branchName = process.env.BRANCH_NAME;
+            const now = new Date();
+            const prTitle = `🤖 Meaningless PR #${Math.floor(Math.random() * 1000)} - ${now.toISOString()}`;
+            
+            const meaninglessDescriptions = [
+              "This PR adds absolutely nothing of value to the codebase.",
+              "I'm a bot and I exist solely to create meaningless PRs.",
+              "This change is as useful as a chocolate teapot.",
+              "Another day, another meaningless commit.",
+              "This PR was automatically generated every 5 minutes because why not?",
+              "Warning: This PR contains 100% meaningless content.",
+              "I'm sorry for wasting your time with this PR.",
+              "This is what happens when you schedule meaningless tasks."
+            ];
+            
+            const randomDescription = meaninglessDescriptions[Math.floor(Math.random() * meaninglessDescriptions.length)];
+            
+            const prBody = `## 🚨 Meaningless PR Alert! 🚨
+            
+            ${randomDescription}
+            
+            ### Changes Made:
+            - Added some random text to meaningless-changes.md
+            - Possibly added a comment to README.md
+            - Wasted some CI/CD resources
+            
+            ### Why This PR Exists:
+            This PR was automatically created every 5 minutes as requested. It serves no practical purpose.
+            
+            ### What You Should Do:
+            1. Close this PR immediately
+            2. Question your life choices
+            3. Consider disabling this workflow
+            
+            ---
+            *Generated at: ${now.toISOString()}*
+            *Random ID: ${Math.random().toString(36).substring(7)}*`;
+            
+            try {
+              const response = await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: prTitle,
+                head: branchName,
+                base: 'main',
+                body: prBody
+              });
+              
+              console.log(`Created PR #${response.data.number}: ${response.data.html_url}`);
+              
+              // PRにラベルを追加
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: response.data.number,
+                labels: ['meaningless', 'bot-generated', 'auto-created']
+              });
+              
+            } catch (error) {
+              console.error('Error creating PR:', error);
+              // ブランチが既に存在する場合などのエラーを処理
+              if (error.status === 422) {
+                console.log('Branch might already exist or other validation error');
+              } else {
+                throw error;
+              }
+            }
