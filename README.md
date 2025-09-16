@@ -54,3 +54,4 @@ Vitest と Testing Library でゲームロジックの主要な挙動をカバ�
 ## ライセンス
 
 このサンプルは MIT ライセンスで提供します。
+<!-- Meaningless comment added at Tue Sep 16 12:09:16 UTC 2025 -->
