@@ -1,0 +1,56 @@
+name: Cleanup Meaningless PRs (Optional)
+
+on:
+  schedule:
+    # 1時間毎に古いPRをクローズ (オプション)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  cleanup-old-prs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Close old meaningless PRs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1時間以上前に作成されたmeaninglessラベルのPRを取得
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              sort: 'created',
+              direction: 'desc'
+            });
+            
+            for (const pr of prs.data) {
+              const createdAt = new Date(pr.created_at);
+              const hasLabel = pr.labels.some(label => label.name === 'meaningless');
+              
+              if (hasLabel && createdAt < oneHourAgo) {
+                console.log(`Closing old meaningless PR #${pr.number}: ${pr.title}`);
+                
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  state: 'closed'
+                });
+                
+                // PRにコメントを追加
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: '🤖 This meaningless PR was automatically closed after 1 hour to keep the repository clean.'
+                });
+              }
+            }
