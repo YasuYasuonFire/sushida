@@ -1,9 +1,10 @@
 name: Create Meaningless PR Every 5 Minutes
 
 on:
-  schedule:
-    # 5分毎に実行 (UTC時間)
-    - cron: '*/5 * * * *'
+  # schedule は無効化（定期実行を停止）
+  # schedule:
+  #   # 5分毎に実行 (UTC時間)
+  #   - cron: '*/5 * * * *'
   workflow_dispatch: # 手動実行も可能
 
 permissions:
