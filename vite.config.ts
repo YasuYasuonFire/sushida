@@ -1,9 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const isVercel = Boolean(process.env.VERCEL);
+const isStaticSubPath = process.env.NODE_ENV === 'production' && !isVercel;
+
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/sushida-clone/' : '/',
+  base: isStaticSubPath ? '/sushida-clone/' : '/',
   server: {
     host: true,
   },
