@@ -140,6 +140,35 @@ interface TypingGameControls {
 | `start` | `() => void` | ゲーム開始メソッド |
 | `restart` | `() => void` | ゲーム再開始メソッド |
 
+### TypingGameOptions
+
+```typescript
+interface TypingGameOptions {
+  timeLimit?: number;
+  laneSize?: number;
+}
+```
+
+`useTypingGame` フックが受け取るオプションを定義するインターフェースです。
+
+| プロパティ | 型 | 説明 |
+|------------|-----|------|
+| `timeLimit` | `number` | ゲームの制限時間（秒）。デフォルト: 60秒 |
+| `laneSize` | `number` | レーン内の皿数。デフォルト: 3枚 |
+
+#### 使用例
+
+```typescript
+// デフォルト設定（制限時間60秒、レーン内3皿）
+const game1 = useTypingGame();
+
+// カスタム設定
+const game2 = useTypingGame({
+  timeLimit: 120,  // 2分間
+  laneSize: 5      // 5皿表示
+});
+```
+
 ### TypingGameValue
 
 ```typescript
@@ -182,6 +211,77 @@ function useTypingGame(options?: TypingGameOptions): TypingGameValue
 
 詳細な型定義については、[TypingGameValue](#typinggamevalue) セクションを参照してください。
 
+#### 実装例：シンプルなゲームコンポーネント
+
+```typescript
+import React, { useEffect } from 'react';
+import { useTypingGame } from '../game/useTypingGame';
+
+function SimpleGame() {
+  const game = useTypingGame({ timeLimit: 60, laneSize: 3 });
+
+  // キーボードイベントのリスナー設定
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (game.status === 'running' && event.key.length === 1) {
+        game.handleKeyInput(event.key);
+      } else if (game.status === 'idle' && event.key === ' ') {
+        game.start();
+      } else if (game.status === 'finished' && event.key === ' ') {
+        game.restart();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [game]);
+
+  return (
+    <div>
+      <h1>寿司打クローン</h1>
+
+      {/* スコア表示 */}
+      <div>
+        <p>スコア: {game.metrics.score}</p>
+        <p>残り時間: {game.timeLeft}秒</p>
+        <p>コンボ: {game.metrics.combo}</p>
+        <p>獲得金額: {game.metrics.coins}円</p>
+      </div>
+
+      {/* ゲーム状態別表示 */}
+      {game.status === 'idle' && (
+        <div>
+          <p>スペースキーでゲーム開始</p>
+        </div>
+      )}
+
+      {game.status === 'running' && game.activePlate && (
+        <div>
+          <h2>{game.activePlate.label}</h2>
+          <p>
+            <span style={{ color: 'green' }}>{game.activePlate.typed}</span>
+            <span>{game.activePlate.remaining}</span>
+          </p>
+          <p>価格: {game.activePlate.price}円</p>
+        </div>
+      )}
+
+      {game.status === 'finished' && (
+        <div>
+          <h2>ゲーム終了</h2>
+          <p>最終スコア: {game.metrics.score}</p>
+          <p>最大コンボ: {game.metrics.maxCombo}</p>
+          <p>総獲得金額: {game.metrics.coins}円</p>
+          <p>スペースキーで再スタート</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default SimpleGame;
+```
+
 #### 使用例
 
 ```typescript
@@ -214,6 +314,28 @@ export const PLATE_BONUS = 50;            // 皿完成時のボーナススコ�
 export const MISTAKE_PENALTY = 5;         // ミスタイプ時のペナルティ
 ```
 
+## データ
+
+### 寿司皿データ
+
+```typescript
+import { sushiPlates } from './game/data/plates';
+```
+
+利用可能な寿司皿データは `src/game/data/plates.ts` で定義されています。現在24種類の寿司ネタが含まれています：
+
+- まぐろ (maguro) - 100円
+- えび (ebi) - 90円
+- いか (ika) - 80円
+- あなご (anago) - 120円
+- うに (uni) - 200円
+- いくら (ikura) - 150円
+- はまち (hamachi) - 110円
+- サーモン (saamon) - 130円
+- 玉子 (tamago) - 70円
+- かっぱ巻き (kappamaki) - 60円
+- その他14種類...
+
 ## ユーティリティ関数
 
 ### createPlateProgress
@@ -222,7 +344,18 @@ export const MISTAKE_PENALTY = 5;         // ミスタイプ時のペナルテ�
 function createPlateProgress(plate: SushiPlate): PlateProgress
 ```
 
-`SushiPlate` から `PlateProgress` オブジェクトを作成します。
+`SushiPlate` から `PlateProgress` オブジェクトを作成します。初期値として以下を設定：
+- `typed`: 空文字列
+- `remaining`: 皿の `reading` プロパティ
+- `mistakes`: 0
+
+#### 使用例
+
+```typescript
+const plate = { id: 'maguro', label: 'まぐろ', reading: 'maguro', price: 100 };
+const progress = createPlateProgress(plate);
+// progress = { ...plate, typed: '', remaining: 'maguro', mistakes: 0 }
+```
 
 ### pickRandomPlate
 
@@ -232,23 +365,44 @@ function pickRandomPlate(excludeId?: string): SushiPlate
 
 ランダムに寿司皿を選択します。`excludeId` が指定された場合、その ID の皿は除外されます。
 
+#### 使用例
+
+```typescript
+const randomPlate = pickRandomPlate();
+const anotherPlate = pickRandomPlate('maguro'); // まぐろ以外からランダム選択
+```
+
 ## スコア計算
 
 ### 正確なタイピング
 
-- 基本スコア: `CHAR_SCORE * (1 + combo)`
-- 皿完成ボーナス: `PLATE_BONUS`
+- 基本スコア: `CHAR_SCORE + combo` (10 + コンボ数)
+- 皿完成ボーナス: `PLATE_BONUS` (50ポイント)
 - コンボは連続して正しくタイプした文字数
+
+#### 例
+「maguro」をコンボ0からタイプした場合：
+- 'm' → 10 + 1 = 11ポイント
+- 'a' → 10 + 2 = 12ポイント
+- 'g' → 10 + 3 = 13ポイント
+- 'u' → 10 + 4 = 14ポイント
+- 'r' → 10 + 5 = 15ポイント
+- 'o' → 10 + 6 = 16ポイント
+- 皿完成ボーナス → 50ポイント
+- 合計：131ポイント
 
 ### ミスタイピング
 
-- ペナルティ: `MISTAKE_PENALTY`
+- ペナルティ: `MISTAKE_PENALTY` (5ポイントマイナス)
 - コンボはリセットされる
 - スコアは0未満にはならない
 
 ### 金額計算
 
 完成した皿の `price` プロパティが累積されます。
+
+#### 例
+- まぐろ (100円) + えび (90円) + うに (200円) = 390円
 
 ## イベント処理
 
