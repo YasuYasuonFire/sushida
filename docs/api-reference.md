@@ -56,6 +56,22 @@ interface PlateProgress extends SushiPlate {
 | `remaining` | `string` | 残りタイプする文字列 |
 | `mistakes` | `number` | この皿でのミスタイプ数 |
 
+### CompletedPlate
+
+```typescript
+interface CompletedPlate extends PlateProgress {
+  durationMs: number;
+  completed: boolean;
+}
+```
+
+完成した皿の情報を表すインターフェースです。
+
+| プロパティ | 型 | 説明 |
+|------------|-----|------|
+| `durationMs` | `number` | 皿完成にかかった時間（ミリ秒） |
+| `completed` | `boolean` | 皿の完成状態 |
+
 ### GameMetrics
 
 ```typescript
@@ -97,6 +113,47 @@ interface GameState {
 
 ゲーム全体の状態を表すインターフェースです。
 
+| プロパティ | 型 | 説明 |
+|------------|-----|------|
+| `status` | `GameStatus` | 現在のゲーム状態 |
+| `timeLimit` | `number` | ゲームの制限時間（秒） |
+| `timeLeft` | `number` | 残り時間（秒） |
+| `activePlate` | `PlateProgress \| null` | 現在タイピング中の皿 |
+| `upcomingPlates` | `SushiPlate[]` | 次に登場する皿の配列 |
+| `completedPlates` | `CompletedPlate[]` | 完成した皿の配列 |
+| `metrics` | `GameMetrics` | ゲーム成績情報 |
+| `startedAt` | `number \| null` | ゲーム開始時刻（タイムスタンプ） |
+
+### TypingGameControls
+
+```typescript
+interface TypingGameControls {
+  start: () => void;
+  restart: () => void;
+}
+```
+
+ゲーム制御メソッドを定義するインターフェースです。
+
+| プロパティ | 型 | 説明 |
+|------------|-----|------|
+| `start` | `() => void` | ゲーム開始メソッド |
+| `restart` | `() => void` | ゲーム再開始メソッド |
+
+### TypingGameValue
+
+```typescript
+interface TypingGameValue extends GameState, TypingGameControls {
+  handleKeyInput: (key: string) => void;
+}
+```
+
+`useTypingGame` フックが返す完全な値の型です。`GameState` と `TypingGameControls` を継承し、追加のメソッドを提供します。
+
+| プロパティ | 型 | 説明 |
+|------------|-----|------|
+| `handleKeyInput` | `(key: string) => void` | キー入力処理メソッド |
+
 ## Hooks
 
 ### useTypingGame
@@ -122,6 +179,8 @@ function useTypingGame(options?: TypingGameOptions): TypingGameValue
 | `start` | `() => void` | ゲームを開始 |
 | `restart` | `() => void` | ゲームを再開始 |
 | `handleKeyInput` | `(key: string) => void` | キー入力を処理 |
+
+詳細な型定義については、[TypingGameValue](#typinggamevalue) セクションを参照してください。
 
 #### 使用例
 
