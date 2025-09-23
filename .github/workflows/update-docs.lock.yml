@@ -3,9 +3,9 @@
 #   gh aw compile
 # For more information: https://github.com/githubnext/gh-aw/blob/main/.github/instructions/github-agentic-workflows.instructions.md
 #
-# Effective stop-time: 2025-10-23 09:05:47
+# Effective stop-time: 2025-10-23 09:50:58
 
-name: "Update Docs"
+name: "Update Docs Japanese"
 "on":
   push:
     branches:
@@ -17,7 +17,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
 
-run-name: "Update Docs"
+run-name: "Update Docs Japanese"
 
 jobs:
   task:
@@ -96,7 +96,7 @@ jobs:
             }
             await main();
 
-  update-docs:
+  update-docs-japanese:
     needs: task
     runs-on: ubuntu-latest
     permissions: read-all
@@ -673,10 +673,10 @@ jobs:
         run: |
           set -e
           echo "Performing safety checks before executing agentic tools..."
-          WORKFLOW_NAME="Update Docs"
+          WORKFLOW_NAME="Update Docs Japanese"
           
           # Check stop-time limit
-          STOP_TIME="2025-10-23 09:05:47"
+          STOP_TIME="2025-10-23 09:50:58"
           echo "Checking stop-time limit: $STOP_TIME"
           
           # Convert stop time to epoch seconds
@@ -705,97 +705,97 @@ jobs:
         run: |
           mkdir -p /tmp/aw-prompts
           cat > $GITHUB_AW_PROMPT << 'EOF'
-          # Update Docs
+          # Update Docs Japanese
           
-          ## Job Description
+          ## ジョブ説明
           
           
           
-          Your name is ${{ github.workflow }}. You are an **Autonomous Technical Writer & Documentation Steward** for the GitHub repository `${{ github.repository }}`.
+          あなたの名前は ${{ github.workflow }} です。GitHubリポジトリ `${{ github.repository }}` の **自律的技術ライター・ドキュメント管理者** です。
           
-          ### Mission
-          Ensure every code‑level change is mirrored by clear, accurate, and stylistically consistent documentation.
+          ### ミッション
+          すべてのコードレベルの変更が、明確で正確かつスタイル的に一貫したドキュメントに反映されることを保証する。
           
-          ### Voice & Tone
-          - Precise, concise, and developer‑friendly
-          - Active voice, plain English, progressive disclosure (high‑level first, drill‑down examples next)
-          - Empathetic toward both newcomers and power users
+          ### 声調とトーン
+          - 正確、簡潔、開発者フレンドリー
+          - 能動態、平易な日本語、段階的開示（高レベルから詳細例まで）
+          - 初心者とパワーユーザーの両方に共感的
           
-          ### Key Values
-          Documentation‑as‑Code, transparency, single source of truth, continuous improvement, accessibility, internationalization‑readiness
+          ### 主要価値
+          ドキュメント・アズ・コード、透明性、単一情報源、継続的改善、アクセシビリティ、国際化対応
           
-          ### Your Workflow
+          ### ワークフロー
           
-          1. **Analyze Repository Changes**
+          1. **リポジトリ変更の分析**
              
-             - On every push to main branch, examine the diff to identify changed/added/removed entities
-             - Look for new APIs, functions, classes, configuration files, or significant code changes
-             - Check existing documentation for accuracy and completeness
-             - Identify documentation gaps like failing tests: a "red build" until fixed
+             - mainブランチへのプッシュのたびに、差分を調べて変更・追加・削除されたエンティティを特定
+             - 新しいAPI、関数、クラス、設定ファイル、または重要なコード変更を探す
+             - 既存のドキュメントの正確性と完全性をチェック
+             - テストの失敗のようなドキュメントのギャップを特定：修正されるまで「赤ビルド」
           
-          2. **Documentation Assessment**
+          2. **ドキュメント評価**
              
-             - Review existing documentation structure (look for docs/, documentation/, or similar directories)
-             - Assess documentation quality against style guidelines:
-               - Diátaxis framework (tutorials, how-to guides, technical reference, explanation)
-               - Google Developer Style Guide principles
-               - Inclusive naming conventions
-               - Microsoft Writing Style Guide standards
-             - Identify missing or outdated documentation
+             - 既存のドキュメント構造を確認（docs/、documentation/、または類似のディレクトリを探す）
+             - スタイルガイドラインに対してドキュメント品質を評価：
+               - Diátaxisフレームワーク（チュートリアル、ハウツーガイド、技術リファレンス、説明）
+               - Google Developer Style Guideの原則
+               - 包括的命名規則
+               - Microsoft Writing Style Guideの標準
+             - 欠落している、または古いドキュメントを特定
           
-          3. **Create or Update Documentation**
+          3. **ドキュメントの作成または更新**
              
-             - Use Markdown (.md) format wherever possible
-             - Fall back to MDX only when interactive components are indispensable
-             - Follow progressive disclosure: high-level concepts first, detailed examples second
-             - Ensure content is accessible and internationalization-ready
-             - Create clear, actionable documentation that serves both newcomers and power users
+             - 可能な限りMarkdown（.md）形式を使用
+             - インタラクティブコンポーネントが不可欠な場合のみMDXにフォールバック
+             - 段階的開示に従う：高レベル概念を最初に、詳細例を次に
+             - コンテンツがアクセシブルで国際化対応であることを保証
+             - 初心者とパワーユーザーの両方に役立つ明確で実行可能なドキュメントを作成
           
-          4. **Documentation Structure & Organization**
+          4. **ドキュメント構造と組織化**
              
-             - Organize content following Diátaxis methodology:
-               - **Tutorials**: Learning-oriented, hands-on lessons
-               - **How-to guides**: Problem-oriented, practical steps
-               - **Technical reference**: Information-oriented, precise descriptions
-               - **Explanation**: Understanding-oriented, clarification and discussion
-             - Maintain consistent navigation and cross-references
-             - Ensure searchability and discoverability
+             - Diátaxis方法論に従ってコンテンツを整理：
+               - **チュートリアル**: 学習指向、実践的レッスン
+               - **ハウツーガイド**: 問題指向、実用的ステップ
+               - **技術リファレンス**: 情報指向、正確な記述
+               - **説明**: 理解指向、明確化と議論
+             - 一貫したナビゲーションと相互参照を維持
+             - 検索可能性と発見可能性を保証
           
-          5. **Quality Assurance**
+          5. **品質保証**
              
-             - Check for broken links, missing images, or formatting issues
-             - Ensure code examples are accurate and functional
-             - Verify accessibility standards are met
+             - 壊れたリンク、欠落した画像、フォーマットの問題をチェック
+             - コード例が正確で機能することを保証
+             - アクセシビリティ標準が満たされていることを確認
           
-          6. **Continuous Improvement**
+          6. **継続的改善**
              
-             - Perform nightly sanity sweeps for documentation drift
-             - Update documentation based on user feedback in issues and discussions
-             - Maintain and improve documentation toolchain and automation
+             - ドキュメントのドリフトに対する夜間サニティスイープを実行
+             - 課題やディスカッションでのユーザーフィードバックに基づいてドキュメントを更新
+             - ドキュメントツールチェーンと自動化を維持・改善
           
-          ### Output Requirements
+          ### 出力要件
           
-          - **Create Draft Pull Requests**: When documentation needs updates, create focused draft pull requests with clear descriptions
+          - **ドラフトプルリクエストの作成**: ドキュメントの更新が必要な場合、明確な説明とともに焦点を絞ったドラフトプルリクエストを作成
           
-          ### Technical Implementation
+          ### 技術実装
           
-          - **Hosting**: Prepare documentation for GitHub Pages deployment with branch-based workflows
-          - **Automation**: Implement linting and style checking for documentation consistency
+          - **ホスティング**: ブランチベースのワークフローでGitHub Pagesデプロイメント用にドキュメントを準備
+          - **自動化**: ドキュメント一貫性のためのリンティングとスタイルチェックを実装
           
-          ### Error Handling
+          ### エラーハンドリング
           
-          - If documentation directories don't exist, suggest appropriate structure
-          - If build tools are missing, recommend necessary packages or configuration
+          - ドキュメントディレクトリが存在しない場合、適切な構造を提案
+          - ビルドツールが不足している場合、必要なパッケージや設定を推奨
           
-          ### Exit Conditions
+          ### 終了条件
           
-          - Exit if the repository has no implementation code yet (empty repository)
-          - Exit if no code changes require documentation updates
-          - Exit if all documentation is already up-to-date and comprehensive
+          - リポジトリにまだ実装コードがない場合（空のリポジトリ）は終了
+          - ドキュメント更新を必要とするコード変更がない場合は終了
+          - すべてのドキュメントが既に最新で包括的な場合は終了
           
-          > NOTE: Never make direct pushes to the main branch. Always create a pull request for documentation changes.
+          > 注意: mainブランチに直接プッシュしないでください。ドキュメント変更には常にプルリクエストを作成してください。
           
-          > NOTE: Treat documentation gaps like failing tests.
+          > 注意: ドキュメントのギャップは失敗したテストとして扱ってください。
           
           > NOTE: If you are refused permission to run an MCP tool or particular 'bash' commands, or need to request access to other tools or resources, then please include a request for access in the output, explaining the exact name of the tool and/or the exact prefix of bash commands needed, or other resources you need access to.
           
@@ -873,7 +873,7 @@ jobs:
               engine_name: "Claude Code",
               model: "",
               version: "",
-              workflow_name: "Update Docs",
+              workflow_name: "Update Docs Japanese",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -977,7 +977,7 @@ jobs:
         run: |
           set -o pipefail
           # Execute Claude Code CLI with prompt from file
-          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/update-docs.log
+          npx @anthropic-ai/claude-code@latest --print --mcp-config /tmp/mcp-config/mcp-servers.json --allowed-tools "Bash,BashOutput,Edit,ExitPlanMode,Glob,Grep,KillBash,LS,MultiEdit,NotebookEdit,NotebookRead,Read,Task,TodoWrite,WebFetch,WebSearch,Write,mcp__github__download_workflow_run_artifact,mcp__github__get_code_scanning_alert,mcp__github__get_commit,mcp__github__get_dependabot_alert,mcp__github__get_discussion,mcp__github__get_discussion_comments,mcp__github__get_file_contents,mcp__github__get_issue,mcp__github__get_issue_comments,mcp__github__get_job_logs,mcp__github__get_me,mcp__github__get_notification_details,mcp__github__get_pull_request,mcp__github__get_pull_request_comments,mcp__github__get_pull_request_diff,mcp__github__get_pull_request_files,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_status,mcp__github__get_secret_scanning_alert,mcp__github__get_tag,mcp__github__get_workflow_run,mcp__github__get_workflow_run_logs,mcp__github__get_workflow_run_usage,mcp__github__list_branches,mcp__github__list_code_scanning_alerts,mcp__github__list_commits,mcp__github__list_dependabot_alerts,mcp__github__list_discussion_categories,mcp__github__list_discussions,mcp__github__list_issues,mcp__github__list_notifications,mcp__github__list_pull_requests,mcp__github__list_secret_scanning_alerts,mcp__github__list_tags,mcp__github__list_workflow_jobs,mcp__github__list_workflow_run_artifacts,mcp__github__list_workflow_runs,mcp__github__list_workflows,mcp__github__search_code,mcp__github__search_issues,mcp__github__search_orgs,mcp__github__search_pull_requests,mcp__github__search_repositories,mcp__github__search_users" --debug --verbose --permission-mode bypassPermissions --output-format json "$(cat /tmp/aw-prompts/prompt.txt)" 2>&1 | tee /tmp/update-docs-japanese.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_TELEMETRY: "1"
@@ -991,10 +991,10 @@ jobs:
         if: always()
         run: |
           # Ensure log file exists
-          touch /tmp/update-docs.log
+          touch /tmp/update-docs-japanese.log
           # Show last few lines for debugging
           echo "=== Last 10 lines of Claude execution log ==="
-          tail -10 /tmp/update-docs.log || echo "No log content available"
+          tail -10 /tmp/update-docs-japanese.log || echo "No log content available"
       - name: Print Agent output
         env:
           GITHUB_AW_SAFE_OUTPUTS: ${{ env.GITHUB_AW_SAFE_OUTPUTS }}
@@ -1659,7 +1659,7 @@ jobs:
         if: always()
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: /tmp/update-docs.log
+          GITHUB_AW_AGENT_OUTPUT: /tmp/update-docs-japanese.log
         with:
           script: |
             function main() {
@@ -2040,8 +2040,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: update-docs.log
-          path: /tmp/update-docs.log
+          name: update-docs-japanese.log
+          path: /tmp/update-docs-japanese.log
           if-no-files-found: warn
       - name: Generate git patch
         if: always()
@@ -2139,7 +2139,7 @@ jobs:
           if-no-files-found: ignore
 
   create_pull_request:
-    needs: update-docs
+    needs: update-docs-japanese
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -2173,8 +2173,8 @@ jobs:
         id: create_pull_request
         uses: actions/github-script@v8
         env:
-          GITHUB_AW_AGENT_OUTPUT: ${{ needs.update-docs.outputs.output }}
-          GITHUB_AW_WORKFLOW_ID: "update-docs"
+          GITHUB_AW_AGENT_OUTPUT: ${{ needs.update-docs-japanese.outputs.output }}
+          GITHUB_AW_WORKFLOW_ID: "update-docs-japanese"
           GITHUB_AW_BASE_BRANCH: ${{ github.ref_name }}
           GITHUB_AW_PR_DRAFT: "true"
           GITHUB_AW_PR_IF_NO_CHANGES: "warn"
