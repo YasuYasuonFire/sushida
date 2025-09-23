@@ -51,6 +51,7 @@ Vitest と Testing Library でゲームロジックの主要な挙動をカバ�
 
 - **[API リファレンス](docs/api-reference.md)** - 型定義、フック、関数の詳細仕様
 - **[開発者ガイド](docs/developer-guide.md)** - 機能拡張、カスタマイズ方法
+- **[UI コンポーネントリファレンス](docs/ui-components-reference.md)** - UI コンポーネントの詳細仕様とガイド
 - **[Vercel へのデプロイ手順](docs/deployment-vercel.md)** - CLI を使ったデプロイの流れ
 
 ## GitHub Flow の進め方
