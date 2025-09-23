@@ -36,6 +36,12 @@ Vitest と Testing Library でゲームロジックの主要な挙動をカバ�
 - `src/app/` ルートコンポーネント
 - `tests/` Vitest のテストコード
 - `assets/` 画像やサウンドなど（未使用）
+- `docs/` 技術ドキュメント
+
+## ドキュメント
+
+- **[API リファレンス](docs/api-reference.md)** - 型定義、フック、関数の詳細仕様
+- **[開発者ガイド](docs/developer-guide.md)** - 機能拡張、カスタマイズ方法
 
 ## GitHub Flow の進め方
 
