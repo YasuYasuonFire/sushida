@@ -47,6 +47,61 @@ describe('useTypingGame', () => {
     restoreRandom();
   });
 
+  it('records each completed plate only once', () => {
+    const restoreRandom = mockMathRandom(0);
+
+    const { result } = renderHook(() => useTypingGame({ timeLimit: 10 }));
+
+    act(() => {
+      result.current.start();
+    });
+
+    const letters = result.current.activePlate?.reading.split('') ?? [];
+    letters.forEach((letter) => {
+      act(() => {
+        result.current.handleKeyInput(letter);
+      });
+    });
+
+    act(() => {
+      vi.advanceTimersToNextTimer();
+    });
+
+    expect(result.current.completedPlates).toHaveLength(1);
+
+    restoreRandom();
+  });
+
+  it('does not duplicate completed plates when the game finishes', () => {
+    const restoreRandom = mockMathRandom(0);
+
+    const { result } = renderHook(() => useTypingGame({ timeLimit: 3 }));
+
+    act(() => {
+      result.current.start();
+    });
+
+    const letters = result.current.activePlate?.reading.split('') ?? [];
+    letters.forEach((letter) => {
+      act(() => {
+        result.current.handleKeyInput(letter);
+      });
+    });
+
+    act(() => {
+      vi.advanceTimersToNextTimer();
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.status).toBe('finished');
+    expect(result.current.completedPlates).toHaveLength(1);
+
+    restoreRandom();
+  });
+
   it('penalises incorrect input by resetting combo', () => {
     const restoreRandom = mockMathRandom(0);
 

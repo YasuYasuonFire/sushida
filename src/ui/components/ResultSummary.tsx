@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { CompletedPlate, GameMetrics } from '../../game/types';
 
 interface ResultSummaryProps {
@@ -11,6 +12,18 @@ export function ResultSummary({
   completed,
   onRetry,
 }: ResultSummaryProps): JSX.Element {
+  const uniqueCompleted = useMemo(() => {
+    const seen = new Set<string>();
+    return completed.filter((plate) => {
+      const key = `${plate.id}-${plate.typed}-${plate.durationMs}-${plate.mistakes}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }, [completed]);
+
   const accuracy =
     metrics.correctChars + metrics.missedChars === 0
       ? 100
@@ -24,7 +37,7 @@ export function ResultSummary({
     <section className="result-summary">
       <header className="result-summary__header">
         <h2>お疲れさまでした！</h2>
-        <p>今日の握りは {completed.length} 皿でした。</p>
+        <p>今日の握りは {uniqueCompleted.length} 皿でした。</p>
       </header>
       <dl className="result-summary__stats">
         <div>
@@ -52,20 +65,23 @@ export function ResultSummary({
         もう一度遊ぶ
       </button>
       <ul className="result-summary__list">
-        {completed.map((plate) => (
-          <li key={`${plate.id}-${plate.typed}`}>
-            <span className="result-summary__list-label">{plate.label}</span>
-            <span className="result-summary__list-reading">
-              {plate.reading}
-            </span>
-            <span className="result-summary__list-time">
-              {(plate.durationMs / 1000).toFixed(1)}s
-            </span>
-            <span className="result-summary__list-miss">
-              ミス {plate.mistakes}
-            </span>
-          </li>
-        ))}
+        {uniqueCompleted.map((plate) => {
+          const key = `${plate.id}-${plate.typed}-${plate.durationMs}-${plate.mistakes}`;
+          return (
+            <li key={key}>
+              <span className="result-summary__list-label">{plate.label}</span>
+              <span className="result-summary__list-reading">
+                {plate.reading}
+              </span>
+              <span className="result-summary__list-time">
+                {(plate.durationMs / 1000).toFixed(1)}s
+              </span>
+              <span className="result-summary__list-miss">
+                ミス {plate.mistakes}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
