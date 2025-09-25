@@ -225,6 +225,57 @@ export const OptimizedComponent = memo<Props>(({ prop1, prop2 }) => {
 });
 ```
 
+#### 重複データの処理
+
+リストデータに重複が含まれる可能性がある場合は、`useMemo` を使用して効率的に重複除去を行います：
+
+```typescript
+// src/ui/components/ResultSummary.tsx の実装例
+import { useMemo } from 'react';
+
+const uniqueCompleted = useMemo(() => {
+  const seen = new Set<string>();
+  return completed.filter((plate) => {
+    const key = `${plate.id}-${plate.typed}-${plate.durationMs}-${plate.mistakes}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}, [completed]);
+```
+
+**注意点:**
+- ユニークキーは対象データの本質的な特徴を組み合わせて生成
+- `Set` を使用して O(n) の効率的な重複チェックを実現
+- `useMemo` で依存配列が変更された場合のみ再計算
+
+## 既知の問題と解決方法
+
+### 結果画面での重複表示問題
+
+**問題**: ゲーム終了時に完成した皿が結果画面で重複表示されることがある
+
+**原因**: ゲーム状態の更新タイミングによって、同じ皿データが複数回 `completedPlates` 配列に追加される
+
+**解決方法**:
+1. 表示レイヤーでの重複除去（推奨）- `ResultSummary` コンポーネントで実装済み
+2. データ層での重複防止 - ゲームロジック内での状態管理改善
+
+```typescript
+// 表示レイヤーでの対処例
+const uniqueItems = useMemo(() => {
+  const keyMap = new Map();
+  return items.filter(item => {
+    const key = generateUniqueKey(item);
+    if (keyMap.has(key)) return false;
+    keyMap.set(key, true);
+    return true;
+  });
+}, [items]);
+```
+
 ## テスト戦略
 
 ### 単体テスト
@@ -279,6 +330,85 @@ test('displays score correctly', () => {
   expect(screen.getByText('5')).toBeInTheDocument();
 });
 ```
+
+### 回帰テストのパターン
+
+重要なバグ修正後は必ず回帰テストを追加します。以下は最近修正された重複表示問題のテスト例です：
+
+```typescript
+// tests/ui/ResultSummary.test.tsx - 重複データ処理のテスト
+import { render, screen } from '@testing-library/react';
+import { ResultSummary } from '../../src/ui/components/ResultSummary';
+
+describe('ResultSummary', () => {
+  it('renders each completed plate only once when data is duplicated', () => {
+    const duplicated = [createCompletedPlate(), createCompletedPlate()];
+
+    render(
+      <ResultSummary
+        metrics={baseMetrics}
+        completed={duplicated}
+        onRetry={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(
+      screen.getByText('今日の握りは 1 皿でした。')
+    ).toBeInTheDocument();
+  });
+});
+```
+
+```typescript
+// tests/game/useTypingGame.test.ts - ゲームロジック回帰テスト
+describe('useTypingGame', () => {
+  it('records each completed plate only once', () => {
+    const { result } = renderHook(() => useTypingGame({ timeLimit: 10 }));
+
+    act(() => {
+      result.current.start();
+    });
+
+    // 皿を完成させる
+    const letters = result.current.activePlate?.reading.split('') ?? [];
+    letters.forEach((letter) => {
+      act(() => {
+        result.current.handleKeyInput(letter);
+      });
+    });
+
+    act(() => {
+      vi.advanceTimersToNextTimer();
+    });
+
+    expect(result.current.completedPlates).toHaveLength(1);
+  });
+
+  it('does not duplicate completed plates when the game finishes', () => {
+    const { result } = renderHook(() => useTypingGame({ timeLimit: 3 }));
+
+    // ゲーム完了とタイマー満了を検証
+    act(() => {
+      result.current.start();
+    });
+
+    // 皿を完成させてからゲーム終了まで進める
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(result.current.status).toBe('finished');
+    expect(result.current.completedPlates).toHaveLength(1);
+  });
+});
+```
+
+**テスト設計の原則:**
+- **シンプル性**: 一つのテストで一つの側面のみを検証
+- **再現性**: 同じ条件で必ず同じ結果を返す
+- **独立性**: 他のテストの実行に影響されない
+- **明確性**: テスト名から何を検証しているか分かる
 
 ## デバッグとトラブルシューティング
 
