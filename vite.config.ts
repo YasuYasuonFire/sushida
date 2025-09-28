@@ -6,7 +6,7 @@ const isStaticSubPath = process.env.NODE_ENV === 'production' && !isVercel;
 
 export default defineConfig({
   plugins: [react()],
-  base: isStaticSubPath ? '/sushida-clone/' : '/',
+  base: '/',
   server: {
     host: true,
   },
