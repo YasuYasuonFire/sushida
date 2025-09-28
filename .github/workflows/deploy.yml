@@ -1,0 +1,77 @@
+name: Deploy to Amazon ECS
+
+# mainブランチにプッシュされたときに、このワークフローを実行します
+on:
+  push:
+    branches:
+      - main
+
+# OIDC（OpenID Connect）を使ってAWSのIAMロールを引き受けるための権限設定
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    # ----------------------------------------------------------------
+    # 1. AWSへの認証
+    # ----------------------------------------------------------------
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_IAM_ROLE_FOR_GITHUB_ACTIONS }} # GitHub Secretsに設定したIAMロールのARN
+        aws-region: ap-northeast-1
+
+    # ----------------------------------------------------------------
+    # 2. リポジトリのチェックアウトとECRへのログイン
+    # ----------------------------------------------------------------
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # ----------------------------------------------------------------
+    # 3. DockerイメージのビルドとECRへのプッシュ
+    # ----------------------------------------------------------------
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: sushida-prod-repo # ECRリポジトリ名
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    # ----------------------------------------------------------------
+    # 4. タスク定義の更新
+    # ----------------------------------------------------------------
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: taskdef.json
+        container-name: sushida-prod-container
+        image: ${{ steps.build-image.outputs.image }}
+
+    # ----------------------------------------------------------------
+    # 5. CodeDeployによるデプロイの開始
+    # ----------------------------------------------------------------
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: sushida-prod-service # ECSサービス名
+        cluster: sushida-prod-cluster # ECSクラスター名
+        codedeploy-appspec: appspec.yml
+        codedeploy-application: sushida-prod-app # CodeDeployアプリケーション名
+        codedeploy-deployment-group: sushida-prod-dg # CodeDeployデプロイグループ名
+        wait-for-service-stability: true # デプロイが完了するまで待機する
