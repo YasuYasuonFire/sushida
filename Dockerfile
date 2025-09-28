@@ -27,6 +27,9 @@ FROM nginx:1.25-alpine
 # Nginxがコンテンツを配信するデフォルトのディレクトリにコピーします
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# SPA用のNginx設定ファイルをコピー
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # コンテナが80番ポートを公開することを指定
 EXPOSE 80
 
