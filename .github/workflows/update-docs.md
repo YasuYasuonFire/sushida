@@ -1,7 +1,5 @@
 ---
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   stop-after: +30d # workflow will no longer trigger after 30 days. Remove this and recompile to run indefinitely
 
@@ -131,4 +129,3 @@ timeout_minutes: 15
 
 <!-- You can customize prompting and tools in .github/workflows/agentics/update-docs.config -->
 @include? agentics/update-docs.config
-
