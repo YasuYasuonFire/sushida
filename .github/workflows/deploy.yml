@@ -1,12 +1,10 @@
 name: Deploy to Amazon ECS
 
-# mainブランチにプッシュされたときに、このワークフローを実行します
 on:
   push:
     branches:
       - main
 
-# OIDC（OpenID Connect）を使ってAWSのIAMロールを引き受けるための権限設定
 permissions:
   id-token: write
   contents: read
@@ -24,7 +22,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: ${{ secrets.AWS_IAM_ROLE_FOR_GITHUB_ACTIONS }} # GitHub Secretsに設定したIAMロールのARN
+        role-to-assume: ${{ secrets.AWS_IAM_ROLE_FOR_GITHUB_ACTIONS }} # GitHub SecretsからIAMロールを読み込む
         aws-region: ap-northeast-1
 
     # ----------------------------------------------------------------
@@ -44,7 +42,7 @@ jobs:
       id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: sushida-prod-repo # ECRリポジトリ名
+        ECR_REPOSITORY: sushida-prod-repo # 既存のリポジトリ名に修正
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -52,26 +50,48 @@ jobs:
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     # ----------------------------------------------------------------
-    # 4. タスク定義の更新
+    # 4. 新しいタスク定義の作成
     # ----------------------------------------------------------------
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition sushida-prod-task \
+        --query taskDefinition > task-definition.json
+    
     - name: Fill in the new image ID in the Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
-        task-definition: taskdef.json
+        task-definition: task-definition.json
         container-name: sushida-prod-container
         image: ${{ steps.build-image.outputs.image }}
 
+    - name: Register new task definition
+      id: register-task-def
+      run: |
+        NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://${{ steps.task-def.outputs.task-definition }} --query taskDefinition.taskDefinitionArn --output text)
+        echo "task_definition_arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
     # ----------------------------------------------------------------
-    # 5. CodeDeployによるデプロイの開始
+    # 5. AppSpecファイルの更新とデプロイ資材の準備
     # ----------------------------------------------------------------
-    - name: Deploy Amazon ECS task definition
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: sushida-prod-service # ECSサービス名
-        cluster: sushida-prod-cluster # ECSクラスター名
-        codedeploy-appspec: appspec.yml
-        codedeploy-application: sushida-prod-app # CodeDeployアプリケーション名
-        codedeploy-deployment-group: sushida-prod-dg # CodeDeployデプロイグループ名
-        wait-for-service-stability: true # デプロイが完了するまで待機する
+    - name: Update AppSpec file
+      run: |
+        sed -i "s|<TASK_DEFINITION>|${{ steps.register-task-def.outputs.task_definition_arn }}|g" appspec.yml
+        
+    - name: Create deployment artifact
+      run: zip deploy.zip appspec.yml
+
+    # ----------------------------------------------------------------
+    # 6. CodeDeployによるデプロイの開始
+    # ----------------------------------------------------------------
+    - name: Deploy to Amazon ECS using CodeDeploy
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        BUCKET_NAME="sushida-codedeploy-artifacts-${ACCOUNT_ID}"
+
+        aws s3 cp deploy.zip s3://${BUCKET_NAME}/deploy.zip
+
+        aws deploy create-deployment \
+          --application-name sushida-frontend-app \
+          --deployment-group-name sushida-frontend-dg \
+          --revision "revisionType=S3,s3Location={bucket=${BUCKET_NAME},key=deploy.zip,bundleType=zip}"
